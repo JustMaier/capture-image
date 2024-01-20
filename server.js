@@ -44,7 +44,6 @@ http.createServer((req, res) => {
             });
     } else {
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end(JSON.stringify({ code: 404, message: 'Not found'}));
     }
 
