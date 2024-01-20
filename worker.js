@@ -75,7 +75,9 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
     }
 
     if (transparentBackground) {
-        await page.addStyleTag({ content: 'body { background-color: transparent !important; }' });
+        await page.$$eval('body', elements => {
+            elements.forEach(element => element.style.backgroundColor = 'transparent !important');
+        });
         await page.$$eval('.EmbedFrame-footer, .EmbedFrame-header', elements => {
             elements.forEach(element => element.remove());
         });
