@@ -56,6 +56,7 @@ async function initBrowser() {
     if (!browser) browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox']});
 }
 
+const MAX_WAIT = 100000;
 async function captureWebsiteAsImage({ url, width = 600, height = 600, transparentBackground = false }) {
     console.log(`fetching ${url}`);
     const page = await openPage();
@@ -69,9 +70,12 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
     page.on('requestfinished', () => activeRequests--);
     page.on('requestfailed', () => activeRequests--);
 
+    let loops = 0;
     while (!networkIdle) {
         await new Promise(resolve => setTimeout(resolve, 100));
         networkIdle = (activeRequests === 0);
+        loops++;
+        if (loops > (MAX_WAIT/100)) throw new Error('Timeout waiting for network idle');
     }
 
     if (transparentBackground) {
