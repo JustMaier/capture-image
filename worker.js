@@ -75,7 +75,10 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
         await new Promise(resolve => setTimeout(resolve, 100));
         networkIdle = (activeRequests === 0);
         loops++;
-        if (loops > (MAX_WAIT/100)) throw new Error('Timeout waiting for network idle');
+        if (loops > (MAX_WAIT/100)) {
+            await closePage(page);
+            throw new Error('Timeout waiting for network idle');
+        }
     }
 
     if (transparentBackground) {
