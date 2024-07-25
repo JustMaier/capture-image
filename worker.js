@@ -61,39 +61,42 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
     console.log(`fetching ${url}`);
     const page = await openPage();
 
-    await page.setViewport({ width, height });
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    try {
+        await page.setViewport({ width, height });
+        await page.goto(url, { waitUntil: 'networkidle0', timeout: MAX_WAIT });
 
-    let networkIdle = false;
-    let activeRequests = 0;
-    page.on('request', () => activeRequests++);
-    page.on('requestfinished', () => activeRequests--);
-    page.on('requestfailed', () => activeRequests--);
+        let networkIdle = false;
+        let activeRequests = 0;
+        page.on('request', () => activeRequests++);
+        page.on('requestfinished', () => activeRequests--);
+        page.on('requestfailed', () => activeRequests--);
 
-    let loops = 0;
-    while (!networkIdle) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        networkIdle = (activeRequests === 0);
-        loops++;
-        if (loops > (MAX_WAIT/100)) {
-            await closePage(page);
-            throw new Error('Timeout waiting for network idle');
+        let loops = 0;
+        while (!networkIdle) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            networkIdle = (activeRequests === 0);
+            loops++;
+            if (loops > (MAX_WAIT/100)) {
+                throw new Error('Timeout waiting for network idle');
+            }
         }
+
+        if (transparentBackground) {
+            await page.$$eval('body', elements => {
+                elements.forEach(element => element.style.backgroundColor = 'transparent !important');
+            });
+            await page.$$eval('.EmbedFrame-footer, .EmbedFrame-header', elements => {
+                elements.forEach(element => element.remove());
+            });
+        }
+
+        const screenshot = await page.screenshot({ omitBackground: transparentBackground });
+        return screenshot;
+    } catch (error) {
+        throw error;
+    } finally {
+        await closePage(page);
     }
-
-    if (transparentBackground) {
-        await page.$$eval('body', elements => {
-            elements.forEach(element => element.style.backgroundColor = 'transparent !important');
-        });
-        await page.$$eval('.EmbedFrame-footer, .EmbedFrame-header', elements => {
-            elements.forEach(element => element.remove());
-        });
-    }
-
-    const screenshot = await page.screenshot({ omitBackground: transparentBackground });
-    await closePage(page);
-
-    return screenshot;
 }
 
 parentPort.on('message', async ({id, type, data}) => {
