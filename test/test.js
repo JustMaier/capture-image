@@ -1,17 +1,19 @@
 const { writeFile } = require('fs').promises;
 const { existsSync, mkdirSync } = require('fs');
-const [url, size] = require('process').argv.slice(2);
+const [url, size, hiddenEl] = require('process').argv.slice(2);
 
 const URL = 'http://localhost:5000/capture';
 const TARGET_SITE_URL = url && url.startsWith('http') ? url : 'https://example.com';
 const [width, height] = size && size.split('x').length === 2 ? size.split('x') : [1200, 630];
+const hiddenElements = hiddenEl ? hiddenEl.split(',') : [];
 
 async function requestScreenshot(i) {
     const response = await fetch(URL+'?'+new URLSearchParams({
         url: TARGET_SITE_URL,
         transparent: true,
         width,
-        height
+        height,
+        hiddenElements
     }));
 
     if (response.ok) {

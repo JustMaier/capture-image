@@ -57,7 +57,7 @@ async function initBrowser() {
 }
 
 const MAX_WAIT = 100000;
-async function captureWebsiteAsImage({ url, width = 600, height = 600, transparentBackground = false }) {
+async function captureWebsiteAsImage({ url, width = 600, height = 600, transparentBackground = false, hiddenElements = [] }) {
     console.log(`fetching ${url}`);
     const page = await openPage();
 
@@ -86,6 +86,12 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
                 elements.forEach(element => element.style.backgroundColor = 'transparent !important');
             });
             await page.$$eval('.EmbedFrame-footer, .EmbedFrame-header', elements => {
+                elements.forEach(element => element.remove());
+            });
+        }
+
+        if (hiddenElements.length > 0) {
+            await page.$$eval(hiddenElements.join(','), elements => {
                 elements.forEach(element => element.remove());
             });
         }
