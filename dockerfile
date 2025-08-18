@@ -1,32 +1,27 @@
-# Use an official lightweight Node.js parent image
 FROM node:20-slim
 
-# We don't need the standalone Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
+# 1) System Chromium + common fonts
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      chromium \
+      fonts-liberation \
+      fonts-noto-color-emoji \
+      fonts-noto-cjk \
+      ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome Stable and fonts
-# Note: this installs the necessary libs to make the browser work with Puppeteer.
-RUN apt-get update && apt-get install gnupg wget -y && \
-  wget --quiet --output-document=- https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/apt/trusted.gpg.d/google-archive.gpg && \
-  sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
-  apt-get update && \
-  apt-get install google-chrome-stable -y --no-install-recommends && \
-  rm -rf /var/lib/apt/lists/*
+# 2) Tell Puppeteer not to download its own Chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Set the working directory in the Docker container
 WORKDIR /app
 
-# Copy the package.json and package-lock.json (if available)
+# 3) Cache-friendly install
 COPY package*.json ./
-
-# Install the Node.js dependencies inside the Docker image
-RUN npm install
-
-# Copy the entire project into the container (excluding what's in .dockerignore)
+RUN npm ci --omit=dev
 COPY . .
 
-# Expose port 5000 (or whatever port your app uses) for the app
-EXPOSE 5000
+# 4) Safer defaults in containers
+ENV PUPPETEER_ARGS="--no-sandbox --disable-setuid-sandbox"
 
-# Command to run the app using node
+EXPOSE 5000
 CMD ["node", "server.js"]

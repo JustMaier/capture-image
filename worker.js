@@ -53,12 +53,14 @@ async function closePage(page) {
 }
 
 async function initBrowser() {
-    if (!browser) browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    if (!browser) browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'], executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,});
 }
 
 const MAX_WAIT = 100000;
 async function captureWebsiteAsImage({ url, width = 600, height = 600, transparentBackground = false, hiddenElements = [] }) {
-    console.log(`fetching ${url}`);
+    const consoleKey = `fetching ${url}`;
+    console.log(consoleKey);
+    console.time(consoleKey);
     const page = await openPage();
 
     try {
@@ -102,6 +104,7 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
         throw error;
     } finally {
         await closePage(page);
+        console.timeEnd(consoleKey);
     }
 }
 
