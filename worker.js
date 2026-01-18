@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const { parentPort } = require('worker_threads');
 
 let browser;
+let browserLaunching = null;
 const pages = {
     idle: [],
     busy: [],
@@ -69,7 +70,14 @@ async function closePage(page) {
 }
 
 async function initBrowser() {
-    if (!browser) browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'], executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,});
+    if (browser) return;
+    if (browserLaunching) {
+        await browserLaunching;
+        return;
+    }
+    browserLaunching = puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'], executablePath: process.env.PUPPETEER_EXECUTABLE_PATH });
+    browser = await browserLaunching;
+    browserLaunching = null;
 }
 
 const MAX_WAIT = 100000;
