@@ -3,6 +3,9 @@ const { parentPort } = require('worker_threads');
 
 let browser;
 let browserLaunching = null;
+let idleTimer = null;
+const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
 const pages = {
     idle: [],
     busy: [],
@@ -10,6 +13,26 @@ const pages = {
 };
 const pageUseCounts = new WeakMap();
 const MAX_PAGE_USES = 50;
+
+function resetIdleTimer() {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(closeBrowser, IDLE_TIMEOUT);
+}
+
+async function closeBrowser() {
+    if (!browser) return;
+    console.log('closing browser after idle timeout');
+    try {
+        await browser.close();
+    } catch (e) {
+        console.log('error closing browser:', e);
+    }
+    browser = null;
+    pages.idle = [];
+    pages.busy = [];
+    pages.all = [];
+    idleTimer = null;
+}
 async function openPage() {
     if (pages.idle.length > 0) {
         const page = pages.idle.pop();
@@ -148,6 +171,8 @@ parentPort.on('message', async ({id, type, data}) => {
         } catch (error) {
             console.log(error);
             parentPort.postMessage({ id, success: false, error: error.toString() });
+        } finally {
+            resetIdleTimer();
         }
     }
 });
