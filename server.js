@@ -8,8 +8,12 @@ const worker = new Worker('./worker.js');
 const promises = {};
 worker.on('message', ({ id, success, ...message}) => {
     if (!promises[id]) return;
-    if (!success) promises[id].reject(message);
-    promises[id].resolve(message);
+    if (success) {
+        promises[id].resolve(message);
+    } else {
+        promises[id].reject(message);
+    }
+    delete promises[id];
 })
 function sendToWorker(type, data) {
     return new Promise((resolve, reject) => {

@@ -7,6 +7,8 @@ const pages = {
     busy: [],
     all: []
 };
+const pageUseCounts = new WeakMap();
+const MAX_PAGE_USES = 50;
 async function openPage() {
     if (pages.idle.length > 0) {
         const page = pages.idle.pop();
@@ -33,6 +35,7 @@ async function openPage() {
     const page = await browser.newPage();
     pages.busy.push(page);
     pages.all.push(page);
+    pageUseCounts.set(page, 0);
     console.log('creating new page');
     return page;
 }
@@ -40,14 +43,27 @@ async function closePage(page) {
     const index = pages.busy.indexOf(page);
     if (index > -1) {
         pages.busy.splice(index, 1);
-        pages.idle.push(page);
-        console.log('returning page to idle');
+        const useCount = (pageUseCounts.get(page) || 0) + 1;
+        pageUseCounts.set(page, useCount);
+
+        // Recycle page after MAX_PAGE_USES to prevent memory buildup
+        if (useCount >= MAX_PAGE_USES) {
+            console.log(`closing page after ${useCount} uses`);
+            await page.close();
+            const allIndex = pages.all.indexOf(page);
+            if (allIndex > -1) {
+                pages.all.splice(allIndex, 1);
+            }
+        } else {
+            pages.idle.push(page);
+            console.log('returning page to idle');
+        }
     } else {
         console.log('closing page');
         await page.close();
-        const index = pages.all.indexOf(page);
-        if (index > -1) {
-            pages.all.splice(index, 1);
+        const allIndex = pages.all.indexOf(page);
+        if (allIndex > -1) {
+            pages.all.splice(allIndex, 1);
         }
     }
 }
@@ -63,15 +79,19 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
     console.time(consoleKey);
     const page = await openPage();
 
+    const onRequest = () => activeRequests++;
+    const onFinished = () => activeRequests--;
+    const onFailed = () => activeRequests--;
+    let activeRequests = 0;
+
     try {
         await page.setViewport({ width, height });
         await page.goto(url, { waitUntil: 'networkidle0', timeout: MAX_WAIT });
 
         let networkIdle = false;
-        let activeRequests = 0;
-        page.on('request', () => activeRequests++);
-        page.on('requestfinished', () => activeRequests--);
-        page.on('requestfailed', () => activeRequests--);
+        page.on('request', onRequest);
+        page.on('requestfinished', onFinished);
+        page.on('requestfailed', onFailed);
 
         let loops = 0;
         while (!networkIdle) {
@@ -103,6 +123,9 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
     } catch (error) {
         throw error;
     } finally {
+        page.off('request', onRequest);
+        page.off('requestfinished', onFinished);
+        page.off('requestfailed', onFailed);
         await closePage(page);
         console.timeEnd(consoleKey);
     }
