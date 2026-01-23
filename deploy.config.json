@@ -1,0 +1,19 @@
+{
+  "name": "Image Capture",
+  "description": "Image capture service",
+  "commands": {
+    "deploy": "git pull && docker-compose up -d --build",
+    "restart": "docker-compose restart",
+    "rebuild": "docker-compose down && docker-compose up -d --build",
+    "stop": "docker-compose down"
+  },
+  "default": "deploy",
+  "logs": {
+    "type": "docker",
+    "containerName": "image-capture"
+  },
+  "infrastructure": {
+    "port": 5000,
+    "containerName": "image-capture"
+  }
+}
