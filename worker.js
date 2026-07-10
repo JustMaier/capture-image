@@ -103,7 +103,7 @@ async function initBrowser() {
     browserLaunching = null;
 }
 
-const MAX_WAIT = 100000;
+const MAX_WAIT = 180000;
 async function captureWebsiteAsImage({ url, width = 600, height = 600, transparentBackground = false, hiddenElements = [] }) {
     const consoleKey = `fetching ${url}`;
     console.log(consoleKey);
@@ -117,7 +117,7 @@ async function captureWebsiteAsImage({ url, width = 600, height = 600, transpare
 
     try {
         await page.setViewport({ width, height });
-        await page.goto(url, { waitUntil: 'networkidle0', timeout: MAX_WAIT });
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: MAX_WAIT });
 
         let networkIdle = false;
         page.on('request', onRequest);
