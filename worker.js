@@ -104,34 +104,46 @@ async function initBrowser() {
 }
 
 const MAX_WAIT = 180000;
-async function captureWebsiteAsImage({ url, width = 600, height = 600, transparentBackground = false, hiddenElements = [] }) {
+const QUIET_MS = 750;
+async function captureWebsiteAsImage({ url, width = 600, height = 600, transparentBackground = false, hiddenElements = [], waitForGone = [] }) {
     const consoleKey = `fetching ${url}`;
     console.log(consoleKey);
     console.time(consoleKey);
     const page = await openPage();
 
+    let activeRequests = 0;
     const onRequest = () => activeRequests++;
     const onFinished = () => activeRequests--;
     const onFailed = () => activeRequests--;
-    let activeRequests = 0;
+
+    // Attach before navigating. `networkidle2` resolves once the SPA bundle settles,
+    // which for Metabase is ~30s before the card query fires — listeners attached after
+    // goto() start the counter at 0 and screenshot the loading spinner.
+    page.on('request', onRequest);
+    page.on('requestfinished', onFinished);
+    page.on('requestfailed', onFailed);
 
     try {
         await page.setViewport({ width, height });
         await page.goto(url, { waitUntil: 'networkidle2', timeout: MAX_WAIT });
 
-        let networkIdle = false;
-        page.on('request', onRequest);
-        page.on('requestfinished', onFinished);
-        page.on('requestfailed', onFailed);
-
-        let loops = 0;
-        while (!networkIdle) {
+        const deadline = Date.now() + MAX_WAIT;
+        let quietSince = null;
+        while (true) {
             await new Promise(resolve => setTimeout(resolve, 100));
-            networkIdle = (activeRequests === 0);
-            loops++;
-            if (loops > (MAX_WAIT/100)) {
-                throw new Error('Timeout waiting for network idle');
+            if (Date.now() > deadline) throw new Error('Timeout waiting for page to settle');
+
+            if (activeRequests > 0) { quietSince = null; continue; }
+            if (quietSince === null) quietSince = Date.now();
+            if (Date.now() - quietSince < QUIET_MS) continue;
+
+            if (waitForGone.length > 0) {
+                const stillLoading = await page
+                    .$$eval(waitForGone.join(','), elements => elements.length > 0)
+                    .catch(() => false);
+                if (stillLoading) { quietSince = null; continue; }
             }
+            break;
         }
 
         if (transparentBackground) {
@@ -176,4 +188,3 @@ parentPort.on('message', async ({id, type, data}) => {
         }
     }
 });
-

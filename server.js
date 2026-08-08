@@ -38,8 +38,9 @@ http.createServer((req, res) => {
         const height = parseInt(query.get('height')) || 630;
         const transparentBackground = query.has('transparent') ? query.get('transparent') === 'true' : true;
         const hiddenElements = query.has('hiddenElements') ? query.get('hiddenElements').split(',') : [];
+        const waitForGone = query.has('waitForGone') ? query.get('waitForGone').split(',') : [];
 
-        captureWebsiteAsImage({ url, width, height, transparentBackground, hiddenElements })
+        captureWebsiteAsImage({ url, width, height, transparentBackground, hiddenElements, waitForGone })
             .then((imageBuffer) => {
                 res.writeHead(200, { 'Content-Type': 'image/png' });
                 res.end(imageBuffer, 'binary');
